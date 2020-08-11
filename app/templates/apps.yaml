@@ -88,10 +88,6 @@ spec:
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          {{- range $mountPath, $val := $envsubst.volumeClaimMounts }}
-            - name: {{ or $val.fullname $val.lname | quote }}
-              mountPath: {{ $mountPath | quote }}
-          {{- end }}
         {{- end }}
       restartPolicy: Never
       containers:
@@ -128,10 +124,6 @@ spec:
           {{- end }}
           {{- range $mountPath, $val := .secretMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
-              mountPath: {{ $mountPath | quote }}
-          {{- end }}
-          {{- range $mountPath, $val := .volumeClaimMounts }}
-            - name: {{ or $val.fullname $val.lname | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
           securityContext:
@@ -204,10 +196,6 @@ spec:
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          {{- range $mountPath, $val := $envsubst.volumeClaimMounts }}
-            - name: {{ or $val.fullname $val.lname | quote }}
-              mountPath: {{ $mountPath | quote }}
-          {{- end }}
         {{- end }}
       restartPolicy: Never
       containers:
@@ -244,10 +232,6 @@ spec:
           {{- end }}
           {{- range $mountPath, $val := .secretMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
-              mountPath: {{ $mountPath | quote }}
-          {{- end }}
-          {{- range $mountPath, $val := .volumeClaimMounts }}
-            - name: {{ or $val.fullname $val.lname | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
           securityContext:
