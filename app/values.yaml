@@ -6,22 +6,18 @@ nameOverride: ""
 fullnameOverride: ""
 
 configMaps: {}
-  # config:
+  # lnameHere:
   #   data:
   #     config.toml: |-
   #      content
-  # ecdsa-config: {}
-    # data:
-    #   config.toml: |-
-    #     content
 secrets: {}
-  # wallet:
+  # anotherlname:
   #   data:
-  #     wallet.json: |
+  #     shhh.json: |
   #       plaintext content
 
 apps: {}
-  # component-name:
+  # lnameOfApp:
   #   enabled: true
 
   #   kind: StatefulSet
@@ -35,26 +31,36 @@ apps: {}
   #         requests:
   #           storage: 1Gi
 
-  #   envsubst:
+  #   initOperations:
   #     enabled: true
-  #     env:
-  #       LOG_LEVEL: debug
-  #       IPFS_LOGGING_FMT: nocolor
-  #       EXTERNAL_LB_IP: "123.123.123.123"
+  #     passthroughMountPath: /init-passthrough
+      
+  #     steps:
+  #       exampleEnvsubstStep: 
+  #         enabled: true
 
-  #     secretEnv:
-  #       KEEP_ETHEREUM_PASSWORD:
-  #         lname: passphrase
-  #         key: passphrase
+  #         image: bhgedigital/envsubst
 
-  #     passthroughMountPath: /envsubst-passthrough
+  #         command:
+  #           - sh
+  #           - -c
+  #           - set -ex &&
+  #             envsubst < /some/input/file.yaml > /init-passthrough/output.yaml &&
+  #             echo "Done!"
 
-  #     configMapMounts:
-  #       /mounts/config:
-  #         lname: config
+  #         env:
+  #           LOG_LEVEL: debug
+  #           IPFS_LOGGING_FMT: nocolor
+  #           EXTERNAL_LB_IP: "123.123.123.123"
 
-  #     files:
-  #       /mounts/config/config.toml: /envsubst-passthrough/config.toml
+  #         secretEnv:
+  #           KEEP_ETHEREUM_PASSWORD:
+  #             lname: passphrase
+  #             key: passphrase
+
+  #         configMapMounts:
+  #           /mounts/config:
+  #             lname: config
 
   #   containers:
   #     app:
@@ -73,7 +79,7 @@ apps: {}
 
   #       args:
   #         - -config
-  #         - /envsubst-passthrough/config.toml
+  #         - /init-passthrough/config.toml
   #         - start
 
   #       env:
@@ -117,6 +123,14 @@ apps: {}
   #         # requests:
   #         #   cpu: 100m
   #         #   memory: 128Mi
+  #       preInstallPod:
+  #         enabled: false
+  #         command: []
+
+  #       preUpgradePod:
+  #         enabled: false
+  #         command: []
+
 
   #   service:
   #     enabled: true
@@ -124,11 +138,26 @@ apps: {}
   #     ports:
   #       tcp-3919: 3919
 
+  #   # These are named services, additional to the default service above
+  #   # services:
+  #   #   external: # name
+  #   #     enabled: true
+  #   #     type: NodePort
+  #   #     ports:
+  #   #       tcp-3003: 3003
+
+
   #   serviceAccount:
   #     # Specifies whether a service account should be created
   #     create: true
   #     # Annotations to add to the service account
   #     annotations: {}
+  #     # Optionally create an attach role:
+  #     # role:
+  #     #   rules:
+  #     #     - apiGroups: [""] # "" indicates the core API group
+  #     #       resources: ["services"]
+  #     #       verbs: ["get", "list"]
   #     # The name of the service account to use.
   #     # If not set and create is true, a name is generated using the fullname template
   #     name:

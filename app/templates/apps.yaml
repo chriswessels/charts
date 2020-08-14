@@ -7,10 +7,12 @@
 {{- $appIsDeployment := eq $appKind "Deployment" }}
 
 {{- with $lContext }}
-{{- $envsubst := .envsubst }}
+{{- $initOperations := .initOperations }}
 {{- if .enabled }}
 {{- $serviceAccountBlock := or .serviceAccount dict }}
 {{- $serviceAccountName := default $fullComponentName $serviceAccountBlock.name }}
+
+{{- $imagePullSecrets := .imagePullSecrets }}
 
 {{- if $serviceAccountBlock.create }}
 ---
@@ -19,8 +21,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ $serviceAccountName }}
-  labels:
-    {{- $labels | nindent 4 }}
+  labels: {{- $labels | nindent 4 }}
   annotations:
     "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "-10"
@@ -28,9 +29,39 @@ metadata:
   {{- with $serviceAccountBlock.annotations }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- with $serviceAccountBlock.role }}
+---
+### Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceAccountName }}-role
+  labels: {{- $labels | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+{{- with .rules }}
+rules: {{ toYaml . | nindent 2 }}
+{{- end }}
+---
+### Role Binding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceAccountName }}-role
+  labels: {{- $labels | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ $.Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ $serviceAccountName }}-role
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
 {{- end }}
 
-{{- $imagePullSecrets := .imagePullSecrets }}
 {{- range $containerName, $containerContext := .containers }}
 {{- if .preInstallPod.enabled }}
 ---
@@ -54,23 +85,17 @@ spec:
       securityContext:
         {{- toYaml .podSecurityContext | nindent 8 }}
       initContainers:
-        {{- if $envsubst.enabled }}
-        - name: envsubst-{{ $lName }}
-          image: bhgedigital/envsubst
-          command:
-            - sh
-            - -c
-            - set -ex &&
-            {{- range $input, $output := $envsubst.files }}
-              envsubst < {{ $input }} > {{ $output }} &&
-            {{- end }}
-              echo "Done!"
+        {{- if $initOperations.enabled }}
+        {{- range $name, $step := $initOperations.steps }}
+        - name: init-{{ $name }}
+          image: {{ $step.image }}
+          command: {{ toYaml $step.command | nindent 12 }}
           env:
-          {{- range $key, $val := $envsubst.env }}
+          {{- range $key, $val := $step.env }}
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
           {{- end }}
-          {{- range $key, $val := $envsubst.secretEnv }}
+          {{- range $key, $val := $step.secretEnv }}
             - name: {{ $key | quote }}
               valueFrom:
                 secretKeyRef:
@@ -78,16 +103,17 @@ spec:
                   key: {{ $val.key | quote }}
           {{- end }}
           volumeMounts:
-            - name: envsubst-passthrough
-              mountPath: {{ $envsubst.passthroughMountPath }}
-          {{- range $mountPath, $val := $envsubst.configMapMounts }}
+            - name: init-passthrough
+              mountPath: {{ $initOperations.passthroughMountPath }}
+          {{- range $mountPath, $val := $step.configMapMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          {{- range $mountPath, $val := $envsubst.secretMounts }}
+          {{- range $mountPath, $val := $step.secretMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
+        {{- end }}
         {{- end }}
       restartPolicy: Never
       containers:
@@ -98,8 +124,7 @@ spec:
             - -c 
             - {{ .preInstallPod.command | quote }}
           {{- with .args }}
-          args: 
-            {{- toYaml . | nindent 12 }}
+          args: {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
           {{- range $key, $val := .env }}
@@ -114,9 +139,9 @@ spec:
                   key: {{ $val.key | quote }}
           {{- end }}
           volumeMounts:
-          {{- if $envsubst.enabled }}
-            - name: envsubst-passthrough
-              mountPath: {{ $envsubst.passthroughMountPath }}
+          {{- if $initOperations.enabled }}
+            - name: init-passthrough
+              mountPath: {{ $initOperations.passthroughMountPath }}
           {{- end }}
           {{- range $mountPath, $val := .configMapMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
@@ -126,8 +151,7 @@ spec:
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          securityContext:
-            {{- toYaml .securityContext | nindent 12 }}
+          securityContext: {{- toYaml .securityContext | nindent 12 }}
           image: "{{ .image.repository }}:{{ .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy }}
           {{- with .ports }}
@@ -147,38 +171,29 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: "{{ $fullComponentName }}-{{ $containerName }}-pre-upgrade-pod"
-  labels:
-    {{- $labels | nindent 4 }}
+  labels: {{- $labels | nindent 4 }}
   annotations:
     "helm.sh/hook": pre-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
     {{- with $imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
     {{- end }}
       serviceAccountName: {{ $serviceAccountName }}
-      securityContext:
-        {{- toYaml .podSecurityContext | nindent 8 }}
+      securityContext: {{- toYaml .podSecurityContext | nindent 8 }}
       initContainers:
-        {{- if $envsubst.enabled }}
-        - name: envsubst-{{ $lName }}
-          image: bhgedigital/envsubst
-          command:
-            - sh
-            - -c
-            - set -ex &&
-            {{- range $input, $output := $envsubst.files }}
-              envsubst < {{ $input }} > {{ $output }} &&
-            {{- end }}
-              echo "Done!"
+        {{- if $initOperations.enabled }}
+        {{- range $name, $step := $initOperations.steps }}
+        - name: init-{{ $name }}
+          image: {{ $step.image }}
+          command: {{ toYaml $step.command | nindent 12 }}
           env:
-          {{- range $key, $val := $envsubst.env }}
+          {{- range $key, $val := $step.env }}
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
           {{- end }}
-          {{- range $key, $val := $envsubst.secretEnv }}
+          {{- range $key, $val := $step.secretEnv }}
             - name: {{ $key | quote }}
               valueFrom:
                 secretKeyRef:
@@ -186,16 +201,17 @@ spec:
                   key: {{ $val.key | quote }}
           {{- end }}
           volumeMounts:
-            - name: envsubst-passthrough
-              mountPath: {{ $envsubst.passthroughMountPath }}
-          {{- range $mountPath, $val := $envsubst.configMapMounts }}
+            - name: init-passthrough
+              mountPath: {{ $initOperations.passthroughMountPath }}
+          {{- range $mountPath, $val := $step.configMapMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          {{- range $mountPath, $val := $envsubst.secretMounts }}
+          {{- range $mountPath, $val := $step.secretMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
+        {{- end }}
         {{- end }}
       restartPolicy: Never
       containers:
@@ -206,8 +222,7 @@ spec:
             - -c 
             - {{ .preUpgradePod.command | quote }}
           {{- with .args }}
-          args: 
-            {{- toYaml . | nindent 12 }}
+          args: {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
           {{- range $key, $val := .env }}
@@ -222,9 +237,9 @@ spec:
                   key: {{ $val.key | quote }}
           {{- end }}
           volumeMounts:
-          {{- if $envsubst.enabled }}
-            - name: envsubst-passthrough
-              mountPath: {{ $envsubst.passthroughMountPath }}
+          {{- if $initOperations.enabled }}
+            - name: init-passthrough
+              mountPath: {{ $initOperations.passthroughMountPath }}
           {{- end }}
           {{- range $mountPath, $val := .configMapMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
@@ -234,8 +249,7 @@ spec:
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          securityContext:
-            {{- toYaml .securityContext | nindent 12 }}
+          securityContext: {{- toYaml .securityContext | nindent 12 }}
           image: "{{ .image.repository }}:{{ .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy }}
           {{- with .ports }}
@@ -250,27 +264,29 @@ spec:
 {{- end }}
 {{- end }}
 
-{{- if .service.enabled }}
+{{ $services := or .services dict }}
+{{ $services := set $services "" .service }}
+{{- range $serviceName, $service := $services }}
+{{- if $service.enabled }}
 ---
-### Service
+### Service {{ $serviceName }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $fullComponentName }}
-  labels:
-    {{- $labels | nindent 4 }}
+  name: {{ $fullComponentName }}{{ if not (empty $serviceName) }}-{{ $serviceName }}{{ end }}
+  labels: {{- $labels | nindent 4 }}
 spec:
-  type: {{ .service.type }}
+  type: {{ $service.type }}
   ports:
-  {{- range $portName, $port := .service.ports }}
+  {{- range $portName, $port := $service.ports }}
     - name: {{ $portName }}
       port: {{ $port }}
       targetPort: {{ $portName }}
       protocol: TCP
   {{- end }}
-  selector:
-    {{- include "app.selectorLabels" $ | nindent 4 }}
+  selector: {{- include "app.selectorLabels" $ | nindent 4 }}
     lname: {{ $lName }}
+{{- end }}
 {{- end }}
 ---
 ### StatefulSet/Deployment
@@ -278,8 +294,7 @@ apiVersion: apps/v1
 kind: {{ $appKind }}
 metadata:
   name: {{ $fullComponentName }}
-  labels:
-    {{- $labels | nindent 4 }}
+  labels: {{- $labels | nindent 4 }}
 spec:
   replicas: {{ .replicaCount }}
   selector:
@@ -302,30 +317,22 @@ spec:
         lname: {{ $lName }}
     spec:
     {{- with .imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
     {{- end }}
       serviceAccountName: {{ $serviceAccountName }}
-      securityContext:
-        {{- toYaml .podSecurityContext | nindent 8 }}
+      securityContext: {{- toYaml .podSecurityContext | nindent 8 }}
       initContainers:
-        {{- if $envsubst.enabled }}
-        - name: envsubst-{{ $lName }}
-          image: bhgedigital/envsubst
-          command:
-            - sh
-            - -c
-            - set -ex &&
-            {{- range $input, $output := $envsubst.files }}
-              envsubst < {{ $input }} > {{ $output }} &&
-            {{- end }}
-              echo "Done!"
+        {{- if $initOperations.enabled }}
+        {{- range $name, $step := $initOperations.steps }}
+        - name: init-{{ $name }}
+          image: {{ $step.image }}
+          command: {{ toYaml $step.command | nindent 12 }}
           env:
-          {{- range $key, $val := $envsubst.env }}
+          {{- range $key, $val := $step.env }}
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
           {{- end }}
-          {{- range $key, $val := $envsubst.secretEnv }}
+          {{- range $key, $val := $step.secretEnv }}
             - name: {{ $key | quote }}
               valueFrom:
                 secretKeyRef:
@@ -333,32 +340,31 @@ spec:
                   key: {{ $val.key | quote }}
           {{- end }}
           volumeMounts:
-            - name: envsubst-passthrough
-              mountPath: {{ $envsubst.passthroughMountPath }}
-          {{- range $mountPath, $val := $envsubst.configMapMounts }}
+            - name: init-passthrough
+              mountPath: {{ $initOperations.passthroughMountPath }}
+          {{- range $mountPath, $val := $step.configMapMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          {{- range $mountPath, $val := $envsubst.secretMounts }}
+          {{- range $mountPath, $val := $step.secretMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
-          {{- range $mountPath, $val := $envsubst.volumeClaimMounts }}
+          {{- range $mountPath, $val := $step.volumeClaimMounts }}
             - name: {{ or $val.fullname $val.lname | quote }}
               mountPath: {{ $mountPath | quote }}
           {{- end }}
+        {{- end }}
         {{- end }}
       containers:
       {{- range $containerName, $containerContext := .containers }}
       {{- with $containerContext }}
         - name: {{ $containerName }}
           {{- with .command }}
-          command: 
-            {{- toYaml . | nindent 12 }}
+          command: {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .args }}
-          args: 
-            {{- toYaml . | nindent 12 }}
+          args: {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
           {{- range $key, $val := .env }}
@@ -373,9 +379,9 @@ spec:
                   key: {{ $val.key | quote }}
           {{- end }}
           volumeMounts:
-          {{- if $envsubst.enabled }}
-            - name: envsubst-passthrough
-              mountPath: {{ $envsubst.passthroughMountPath }}
+          {{- if $initOperations.enabled }}
+            - name: init-passthrough
+              mountPath: {{ $initOperations.passthroughMountPath }}
           {{- end }}
           {{- range $mountPath, $val := .configMapMounts }}
             - name: {{ or $val.fullname (printf "%s-%s" $fullName $val.lname) | quote }}
@@ -391,8 +397,7 @@ spec:
               mountPath: {{ $mountPath | quote }}
           {{- end }}
           {{- end }}
-          securityContext:
-            {{- toYaml .securityContext | nindent 12 }}
+          securityContext: {{- toYaml .securityContext | nindent 12 }}
           image: "{{ .image.repository }}:{{ .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy }}
           {{- with .ports }}
@@ -404,33 +409,27 @@ spec:
           {{- end }}
           {{- end }}
           {{- with .livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
+          livenessProbe: {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .readinessProbe }}
-          readinessProbe:
-            {{- toYaml . | nindent 12 }}
+          readinessProbe: {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
+          resources: {{- toYaml . | nindent 12 }}
           {{- end }}
       {{- end }}
       {{- end }}
       {{- with .nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}
     {{- with .affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
+      affinity: {{- toYaml . | nindent 8 }}
     {{- end }}
     {{- with .tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
+      tolerations: {{- toYaml . | nindent 8 }}
     {{- end }}
       volumes:
-        - name: envsubst-passthrough
+        - name: init-passthrough
           emptyDir: {}
       {{- range $cName, $container := .containers}}
       {{- range $mountPath, $val := $container.configMapMounts }}
