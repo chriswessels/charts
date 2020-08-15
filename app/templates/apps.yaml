@@ -283,6 +283,11 @@ spec:
       port: {{ $port }}
       targetPort: {{ $portName }}
       protocol: TCP
+      {{- if eq $service.type "NodePort" }}
+      {{- with (get $service.nodePorts $portName) }}
+      nodePort: {{ . }}
+      {{- end }}
+      {{- end }}
   {{- end }}
   selector: {{- include "app.selectorLabels" $ | nindent 4 }}
     lname: {{ $lName }}
