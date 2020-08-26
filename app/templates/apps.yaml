@@ -275,6 +275,9 @@ kind: Service
 metadata:
   name: {{ $fullComponentName }}{{ if not (empty $serviceName) }}-{{ $serviceName }}{{ end }}
   labels: {{- $labels | nindent 4 }}
+  {{- with $service.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ $service.type }}
   ports:
@@ -320,6 +323,9 @@ spec:
       labels:
         {{- include "app.selectorLabels" $ | nindent 8 }}
         lname: {{ $lName }}
+      {{- with .annotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
     {{- with .imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}

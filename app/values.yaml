@@ -16,160 +16,164 @@ secrets: {}
   #     shhh.json: |
   #       plaintext content
 
-apps: {}
-  # lnameOfApp:
-  #   enabled: true
+apps: # {}
+  lnameOfApp:
+    enabled: true
 
-  #   kind: StatefulSet
+    kind: StatefulSet
     
-  #   replicaCount: 1
+    replicaCount: 1
 
-  #   volumeClaims:
-  #     data:
-  #       accessModes: [ReadWriteOnce]
-  #       resources:
-  #         requests:
-  #           storage: 1Gi
+    annotations:
+      test: hekki
 
-  #   initOperations:
-  #     enabled: true
-  #     passthroughMountPath: /init-passthrough
+    volumeClaims:
+      data:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+
+    initOperations:
+      enabled: true
+      passthroughMountPath: /init-passthrough
       
-  #     steps:
-  #       exampleEnvsubstStep: 
-  #         enabled: true
+      steps:
+        exampleEnvsubstStep: 
+          enabled: true
 
-  #         image: bhgedigital/envsubst
+          image: bhgedigital/envsubst
 
-  #         command:
-  #           - sh
-  #           - -c
-  #           - set -ex &&
-  #             envsubst < /some/input/file.yaml > /init-passthrough/output.yaml &&
-  #             echo "Done!"
+          command:
+            - sh
+            - -c
+            - set -ex &&
+              envsubst < /some/input/file.yaml > /init-passthrough/output.yaml &&
+              echo "Done!"
 
-  #         env:
-  #           LOG_LEVEL: debug
-  #           IPFS_LOGGING_FMT: nocolor
-  #           EXTERNAL_LB_IP: "123.123.123.123"
+          env:
+            LOG_LEVEL: debug
+            IPFS_LOGGING_FMT: nocolor
+            EXTERNAL_LB_IP: "123.123.123.123"
 
-  #         secretEnv:
-  #           KEEP_ETHEREUM_PASSWORD:
-  #             lname: passphrase
-  #             key: passphrase
+          secretEnv:
+            KEEP_ETHEREUM_PASSWORD:
+              lname: passphrase
+              key: passphrase
 
-  #         configMapMounts:
-  #           /mounts/config:
-  #             lname: config
+          configMapMounts:
+            /mounts/config:
+              lname: config
 
-  #   containers:
-  #     app:
-  #       image:
-  #         repository: repo/image
-  #         tag: latest
-  #         pullPolicy: IfNotPresent
+    containers:
+      app:
+        image:
+          repository: repo/image
+          tag: latest
+          pullPolicy: IfNotPresent
 
-  #       imagePullSecrets: []
+        imagePullSecrets: []
 
-  #       ports:
-  #         tcp-3919: 3919
+        ports:
+          tcp-3919: 3919
 
-  #       command:
-  #         - keep-client
+        command:
+          - keep-client
 
-  #       args:
-  #         - -config
-  #         - /init-passthrough/config.toml
-  #         - start
+        args:
+          - -config
+          - /init-passthrough/config.toml
+          - start
 
-  #       env:
-  #         LOG_LEVEL: debug
-  #         IPFS_LOGGING_FMT: nocolor
-  #         EXTERNAL_LB_IP: "123.123.123.123"
+        env:
+          LOG_LEVEL: debug
+          IPFS_LOGGING_FMT: nocolor
+          EXTERNAL_LB_IP: "123.123.123.123"
 
-  #       secretEnv:
-  #         KEEP_ETHEREUM_PASSWORD:
-  #           lname: passphrase
-  #           key: passphrase
+        secretEnv:
+          KEEP_ETHEREUM_PASSWORD:
+            lname: passphrase
+            key: passphrase
 
-  #       secretMounts:
-  #         /mounts/wallet:
-  #           lname: wallet
+        secretMounts:
+          /mounts/wallet:
+            lname: wallet
 
-  #       configMapMounts:
-  #         /mounts/config:
-  #           lname: config
+        configMapMounts:
+          /mounts/config:
+            lname: config
 
-  #       volumeClaimMounts:
-  #         /mounts/data:
-  #           lname: data
+        volumeClaimMounts:
+          /mounts/data:
+            lname: data
 
-  #       securityContext: {}
-  #         # capabilities:
-  #         #   drop:
-  #         #   - ALL
-  #         # readOnlyRootFilesystem: true
-  #         # runAsNonRoot: true
-  #         # runAsUser: 1000
+        securityContext: {}
+          # capabilities:
+          #   drop:
+          #   - ALL
+          # readOnlyRootFilesystem: true
+          # runAsNonRoot: true
+          # runAsUser: 1000
 
-  #       resources: {}
-  #         # We usually recommend not to specify default resources and to leave this as a conscious
-  #         # choice for the user. This also increases chances charts run on environments with little
-  #         # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  #         # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  #         # limits:
-  #         #   cpu: 100m
-  #         #   memory: 128Mi
-  #         # requests:
-  #         #   cpu: 100m
-  #         #   memory: 128Mi
-  #       preInstallPod:
-  #         enabled: false
-  #         command: []
+        resources: {}
+          # We usually recommend not to specify default resources and to leave this as a conscious
+          # choice for the user. This also increases chances charts run on environments with little
+          # resources, such as Minikube. If you do want to specify resources, uncomment the following
+          # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+          # limits:
+          #   cpu: 100m
+          #   memory: 128Mi
+          # requests:
+          #   cpu: 100m
+          #   memory: 128Mi
+        preInstallPod:
+          enabled: false
+          command: []
 
-  #       preUpgradePod:
-  #         enabled: false
-  #         command: []
-
-
-  #   service:
-  #     enabled: true
-  #     type: ClusterIP
-  #     ports:
-  #       tcp-3919: 3919
-
-  #   # These are named services, additional to the default service above
-  #   # services:
-  #   #   external: # name
-  #   #     enabled: true
-  #   #     type: NodePort
-  #   #     ports:
-  #   #       tcp-3003: 3003
+        preUpgradePod:
+          enabled: false
+          command: []
 
 
-  #   serviceAccount:
-  #     # Specifies whether a service account should be created
-  #     create: true
-  #     # Annotations to add to the service account
-  #     annotations: {}
-  #     # Optionally create an attach role:
-  #     # role:
-  #     #   rules:
-  #     #     - apiGroups: [""] # "" indicates the core API group
-  #     #       resources: ["services"]
-  #     #       verbs: ["get", "list"]
-  #     # The name of the service account to use.
-  #     # If not set and create is true, a name is generated using the fullname template
-  #     name:
+    service:
+      enabled: true
+      annotations: {}
+      type: ClusterIP
+      ports:
+        tcp-3919: 3919
 
-  #   podSecurityContext: {}
-  #     # fsGroup: 2000
+    # These are named services, additional to the default service above
+    # services:
+    #   external: # name
+    #     enabled: true
+    #     type: NodePort
+    #     ports:
+    #       tcp-3003: 3003
 
-  #   nodeSelector: {}
 
-  #   tolerations: []
+    serviceAccount:
+      # Specifies whether a service account should be created
+      create: true
+      # Annotations to add to the service account
+      annotations: {}
+      # Optionally create an attach role:
+      # role:
+      #   rules:
+      #     - apiGroups: [""] # "" indicates the core API group
+      #       resources: ["services"]
+      #       verbs: ["get", "list"]
+      # The name of the service account to use.
+      # If not set and create is true, a name is generated using the fullname template
+      name:
 
-  #   affinity: {}
+    podSecurityContext: {}
+      # fsGroup: 2000
+
+    nodeSelector: {}
+
+    tolerations: []
+
+    affinity: {}
 
 ingress:
   enabled: false
