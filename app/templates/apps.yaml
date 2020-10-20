@@ -95,6 +95,9 @@ spec:
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
           {{- end }}
+          {{- with $step.envRaw }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- range $key, $val := $step.secretEnv }}
             - name: {{ $key | quote }}
               valueFrom:
@@ -130,6 +133,9 @@ spec:
           {{- range $key, $val := .env }}
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
+          {{- end }}
+          {{- with .envRaw }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- range $key, $val := .secretEnv }}
             - name: {{ $key | quote }}
@@ -193,6 +199,9 @@ spec:
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
           {{- end }}
+          {{- with $step.envRaw }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- range $key, $val := $step.secretEnv }}
             - name: {{ $key | quote }}
               valueFrom:
@@ -228,6 +237,9 @@ spec:
           {{- range $key, $val := .env }}
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
+          {{- end }}
+          {{- with .envRaw }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- range $key, $val := .secretEnv }}
             - name: {{ $key | quote }}
@@ -343,6 +355,9 @@ spec:
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
           {{- end }}
+          {{- with $step.envRaw }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- range $key, $val := $step.secretEnv }}
             - name: {{ $key | quote }}
               valueFrom:
@@ -381,6 +396,9 @@ spec:
           {{- range $key, $val := .env }}
             - name: {{ $key | quote }}
               value: {{ $val | quote }}
+          {{- end }}
+          {{- with .envRaw }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- range $key, $val := .secretEnv }}
             - name: {{ $key | quote }}

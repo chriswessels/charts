@@ -27,6 +27,10 @@ apps: {}
   #   annotations:
   #     test: hekki
 
+
+  #   imagePullSecrets:
+  #     - name: secret-name
+
   #   volumeClaims:
   #     data:
   #       accessModes: [ReadWriteOnce]
@@ -55,6 +59,13 @@ apps: {}
   #           LOG_LEVEL: debug
   #           IPFS_LOGGING_FMT: nocolor
   #           EXTERNAL_LB_IP: "123.123.123.123"
+
+
+  #         envRaw:
+  #           - name: POD_NAME
+  #             valueFrom:
+  #               fieldRef:
+  #                 fieldPath: metadata.name
 
   #         secretEnv:
   #           KEEP_ETHEREUM_PASSWORD:
@@ -89,6 +100,12 @@ apps: {}
   #         LOG_LEVEL: debug
   #         IPFS_LOGGING_FMT: nocolor
   #         EXTERNAL_LB_IP: "123.123.123.123"
+
+  #       envRaw:
+  #         - name: POD_NAME
+  #           valueFrom:
+  #             fieldRef:
+  #               fieldPath: metadata.name
 
   #       secretEnv:
   #         KEEP_ETHEREUM_PASSWORD:
