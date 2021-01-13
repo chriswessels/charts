@@ -451,6 +451,9 @@ spec:
       {{- with .nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}
+    {{- with .injectPodYaml }}
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     {{- with .affinity }}
       affinity: {{- toYaml . | nindent 8 }}
     {{- end }}

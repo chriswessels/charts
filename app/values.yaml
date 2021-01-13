@@ -192,6 +192,9 @@ apps: {}
 
   #   affinity: {}
 
+  #   # Inject YAML into pod definition
+  #   # injectPodYaml: {}
+
 ingress:
   enabled: false
   annotations: {}
